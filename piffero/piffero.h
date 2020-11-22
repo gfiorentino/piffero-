@@ -1,10 +1,9 @@
-#pragma once
-#include "lib/rapidjson/reader.h"
-#include "lib/rapidjson/writer.h"
-#include "lib/rapidjson/filereadstream.h"
-#include "lib/rapidjson/filewritestream.h"
-#include "lib/rapidjson/memorybuffer.h"
-#include "lib/rapidjson/memorystream.h"
+#include "../lib/rapidjson/reader.h"
+#include "../lib/rapidjson/writer.h"
+#include "../lib/rapidjson/filereadstream.h"
+#include "../lib/rapidjson/filewritestream.h"
+#include "../lib/rapidjson/memorybuffer.h"
+#include "../lib/rapidjson/memorystream.h"
 #include <cstdio>
 #include <string>
 #include <sstream>
@@ -24,12 +23,10 @@ namespace piffero {
         int rangeStart;
         string value;
         bool isLast;
-        JSONPath* next_;
-
 
         JSONPath(string  value_) {
             isLast = true;
-            value = value;
+            value = value_;
             rangeStart = -1;
         }
 
@@ -38,64 +35,41 @@ namespace piffero {
             value = value_;
             rangeStart = range;
         }
-
-        JSONPath(string value_, JSONPath* next) {
-            isLast = false;
-            next_ = next;
-            rangeStart = -1;
-        }
-
-        JSONPath(string value_, int range, JSONPath* next) {
-            isLast = false;
-            next_ = next;
-            rangeStart = range;
-        }
     };
 
 
     class JSONPathParser {
     public:
-        // facilmente ottimizzabile (non oggi) 
-        static JSONPath jsonPathParse(string path) {
-            vector<string> split = JSONPathParser::split(path, ".");
-            JSONPath* current;
-            for (int i = split.size() - 1; i <= 0; i--) {
+        // facilmente ottimizzabile (non oggi o forse si ) 
+        static vector<JSONPath> jsonPathParse(string jsonpath) 
+        {
+            vector<string> split = JSONPathParser::split(jsonpath, ".");
+            vector<JSONPath> paths;
+            for (int i = 0; i < split.size(); i++) {
                 string current_value = split[i];
-
                 size_t open = current_value.find('[');
                 size_t close = current_value.find(']');
-
                 if (open != string::npos && close != string::npos) {
-
                     vector<string> splitted = JSONPathParser::split(current_value, "[");
                     current_value = splitted[0];
-
                     string::size_type sz;
                     string s_index = splitted[1].erase(splitted[1].size() - 1);
                     int index = stoi(s_index, &sz);
-                    if (i == split.size() - 1) {
-                        JSONPath path(current_value, index);
-                        current = &path;
-                    }
-                    else {
-                        JSONPath path(current_value, index, current);
-                        current = &path;
-                    }
-                }
-                else if (i == split.size() - 1) {
-                    JSONPath path(current_value);
-                    current = &path;
+                    JSONPath path(current_value, index);
+                    paths.push_back(path);
                 }
                 else {
-                    JSONPath path(current_value, current);
-                    current = &path;
-                }
+                    JSONPath path(current_value);
+                    paths.push_back(path);
+                } 
             }
-            return *current;
-        }
+            return paths;
+        };
+   
+    
+  
 
-
-        static vector<string> split(const string& str, const string& delim)
+       static vector<string> split(const string& str, const string& delim)
         {
             vector<string> tokens;
             size_t prev = 0, pos = 0;
@@ -125,7 +99,7 @@ namespace piffero {
         Last last;
         JSONPath& jsonPath;
 
-        PifferoStatus(JSONPath& path) : jsonPath(path) {
+        PifferoStatus(JSONPath& path): jsonPath(path) {
             verified = false;
             recording = false;
             isArray = false;
@@ -142,53 +116,35 @@ namespace piffero {
             currentindex = -1;
         }
     };
-    template <typename InputStream, typename Handler>
-    class JSONParser {
 
-        static void parsePath(InputStream& is, Handler& handler, string Path) {
-            JSONPath path = JsonParse
-
-        }
-
-    };
-
-
-
-
+    // non è più ricorsivo ma sti cazzi 
     class RecorsiveParser {
     public:
-        bool hasNext = false;
-        bool isFirst = false;
-        RecorsiveParser& next;
+        bool hasNext_ = false; 
         stringstream* ss;
         Last last;
-        string parser;
-        RecorsiveParser(stringstream* out) : next(*this) {
-            ss = out;
-            hasNext = false;
-            isFirst = false;
-            parser = "ultimo";
+        bool isRecording = true;
+        JSONPath& jsonpath;
+
+    
+        RecorsiveParser(stringstream& out, JSONPath& path, bool hasNext):jsonpath(path) {
+            ss = &out;
+            hasNext_ = hasNext;
         }
-
-        RecorsiveParser(RecorsiveParser& nextFilter) : next(nextFilter) {
-            hasNext = true;
-            isFirst = true;
-        }
-
-
+        
 
         bool Null() {
             addCommaIfNeeded();
-            if (hasNext) {
-                return next.Null();
+            if (hasNext_) {
+                return true;
             }
             *ss << "null";
             last = value;
             return true;
         }
         bool Bool(bool b) {
-            if (hasNext) {
-                return next.Bool(b);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             if (b) {
@@ -201,8 +157,8 @@ namespace piffero {
             return true;
         }
         bool Int(int i) {
-            if (hasNext) {
-                return next.Int(i);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << i;
@@ -211,8 +167,8 @@ namespace piffero {
         }
 
         bool Uint(unsigned u) {
-            if (hasNext) {
-                return next.Uint(u);
+            if (hasNext_) {
+                return true;;
             }
             addCommaIfNeeded();
             *ss << u;
@@ -220,8 +176,8 @@ namespace piffero {
             return true;
         }
         bool Int64(int64_t i) {
-            if (hasNext) {
-                return next.Int64(i);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << i;
@@ -229,8 +185,8 @@ namespace piffero {
             return true;
         }
         bool Uint64(uint64_t u) {
-            if (hasNext) {
-                return next.Uint64(u);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << u;
@@ -239,8 +195,8 @@ namespace piffero {
             return true;
         }
         bool Double(double d) {
-            if (hasNext) {
-                return next.Double(d);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << d;
@@ -249,8 +205,8 @@ namespace piffero {
             return true;
         }
         bool RawNumber(const char* str, SizeType length, bool copy) {
-            if (hasNext) {
-                return next.RawNumber(str, length, copy);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << str;
@@ -259,20 +215,18 @@ namespace piffero {
         }
 
         bool String(const char* str, SizeType length, bool copy) {
-            if (hasNext) {
-                return next.String(str, length, copy);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
-            *ss << "\"";
-            *ss << str;
-            *ss << "\"";
+            *ss << "\"" << str << "\"";
             last = value;
-            // ParseNext();
+     
             return true;
         }
         bool StartObject() {
-            if (hasNext) {
-                return next.StartObject();
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << "{";
@@ -280,8 +234,8 @@ namespace piffero {
             return true;
         }
         bool Key(const char* str, SizeType length, bool copy) {
-            if (hasNext) {
-                return next.Key(str, length, copy);
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << "\"" << str << "\"" << ":";
@@ -289,16 +243,16 @@ namespace piffero {
             return true;
         }
         bool EndObject(SizeType memberCount) {
-            if (hasNext) {
-                return next.EndObject(memberCount);
+            if (hasNext_) {
+                return true;
             }
             *ss << "}";
             last = endobject;
             return true;
         }
         bool StartArray() {
-            if (hasNext) {
-                return next.StartArray();
+            if (hasNext_) {
+                return true;
             }
             addCommaIfNeeded();
             *ss << "[";
@@ -306,8 +260,8 @@ namespace piffero {
             return true;
         }
         bool EndArray(SizeType elementCount) {
-            if (hasNext) {
-                return next.EndArray(elementCount);
+            if (hasNext_) {
+                return true;
             }
             *ss << "]";
             last = endarray;
@@ -321,4 +275,121 @@ namespace piffero {
             }
         }
     };
+
+
+    class MainParser {
+    public:
+        vector<RecorsiveParser>& parserVector;
+        bool isLast = false;
+        int parserIndex = 0;
+
+        MainParser(vector<RecorsiveParser>& parserVector_): parserVector(parserVector_) {
+        }
+        void shiftParser() {
+            if (parserVector[parserIndex].isRecording && !isLast) {
+                parserIndex++;
+                isLast = parserIndex == parserVector.size() - 1;
+            }
+        }
+
+        bool Null() {
+            bool result = parserVector[parserIndex].Null();
+            shiftParser();
+            return true;
+        }
+        bool Bool(bool b) {
+            bool result = parserVector[parserIndex].Bool(b);
+            shiftParser();
+            return true;
+        }
+        bool Int(int i) {
+            bool result = parserVector[parserIndex].Int(i);
+            shiftParser();
+            return true;
+        }
+
+        bool Uint(unsigned u) {
+            bool result = parserVector[parserIndex].Uint(u);
+            shiftParser();
+            return true;
+        }
+        bool Int64(int64_t i) {
+            bool result = parserVector[parserIndex].Int64(i);
+            shiftParser();
+            return true;
+        }
+        bool Uint64(uint64_t u) {
+            bool result = parserVector[parserIndex].Uint64(u);
+            shiftParser();
+            return true;
+        }
+        bool Double(double d) {
+            bool result = parserVector[parserIndex].Double(d);
+            shiftParser();
+            return true;
+        }
+        bool RawNumber(const char* str, SizeType length, bool copy) {
+            bool result = parserVector[parserIndex].RawNumber(str, length, copy);
+            shiftParser();
+            return true;
+        }
+
+        bool String(const char* str, SizeType length, bool copy) {
+            bool result = parserVector[parserIndex].String(str, length, copy);
+            shiftParser();
+            return true;
+        }
+        bool StartObject() {
+            bool result = parserVector[parserIndex].StartObject();
+            shiftParser();
+            return true;
+        }
+        bool Key(const char* str, SizeType length, bool copy) {
+            bool result = parserVector[parserIndex].Key(str, length, copy);
+            shiftParser();
+            return true;
+        }
+        bool EndObject(SizeType memberCount) {
+            bool result = parserVector[parserIndex].EndObject(memberCount);
+            shiftParser();
+            return true;
+        }
+        bool StartArray() {
+            bool result = parserVector[parserIndex].StartArray();
+            shiftParser();
+            return true;
+        }
+        bool EndArray(SizeType elementCount) {
+            bool result = parserVector[parserIndex].EndArray(elementCount);
+            shiftParser();
+            return true;
+        }
+
+    };
+
+    template <typename InputStream, typename OutputStream>
+    class JSONParser {
+    public:
+        JSONParser() {
+        }
+        void parsePath(InputStream& is, stringstream& os, string path) {
+            vector<JSONPath> jsonpath = JSONPathParser::jsonPathParse(path);
+            vector<RecorsiveParser> parserVector;
+         
+            for (int i = 0; i < jsonpath.size() - 1; i ++ ) {
+                 RecorsiveParser parser(os, jsonpath[i], true);
+                 parserVector.push_back(parser);
+            
+            }
+
+            RecorsiveParser parser(os, jsonpath[jsonpath.size() - 1], false);
+            parserVector.push_back(parser);
+
+            MainParser master(parserVector);
+            Reader reader;
+            reader.Parse(is, master);
+        }
+
+    };
+
 }
